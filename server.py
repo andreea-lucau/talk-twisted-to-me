@@ -15,9 +15,16 @@ class KnowledgeProtocol(basic.LineReceiver):
         logging.debug("client connected")
         self.transport.write(config.START_MESSAGE)
 
-    def lineReceived(self, data):
-        logging.debug("client data received: [%s]", data)
-        self.transport.write(self.factory.knowledge_engine.getAnswer(data))
+    def lineReceived(self, question):
+        client_id, question = question.split(":")
+        logging.debug("client %s send question: [%s]", client_id, question)
+        defferedAnswer = self.factory.knowledge_engine.getAnswer(question)
+        defferedAnswer.addCallback(self.sendAnswer, client_id)
+
+    def sendAnswer(self, answer, client_id):
+        logging.debug("sending answer to client %s: [%s]",
+                      client_id, answer)
+        self.transport.write(answer)
         self.transport.loseConnection()
 
 
@@ -34,6 +41,7 @@ def start_server():
 
     logging.info("server started on port %d", config.SERVER_PORT)
     reactor.run()
+    reactor.callLater(100, reactor.stop)
     logging.info("server execution ended")
 
 
